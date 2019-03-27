@@ -49,24 +49,22 @@ loop:
 # Bootstrap GDT
 	.p2align 2                                # force 4 byte alignment
 gdt:
-# TODO: Fillup GDT entry with SEG macro
-#       One for kernel code segment
-#       One for kernel data segment
-#
-#       Please reference lab3_reference.pdf for the meaning of
-#       each bit inside segment descriptor.
-#
-#       You may reference mmu.h for Application Segment Type for 
-#       easy-to-use macro when defining segmentation type.
-
+# Access type:
+# Present: 1bit
+# Privilage: 2bit, 0 for system space, 1 for user space
+# Reserved: 1bit
+# Executable: 1bit
+# Direction Conforming: 1bit
+# (code segment) allowing execution from lower privilege level
+# (data segment) allowing to be read
+# RW: 1bit
+# (code segment) content of memory can be read
+# (data segment) content of memory can be written to
+# Accessed: 1bit, set to 0 initially, CPU will change to 1 when accessed
 	SEG_NULL    # NULL segment
-	SEG()     # Kernel code segment
-	SEG()     # Kernel data segment
+	SEG(0x9a, 0, 0xffffffff)     # Kernel code segment
+	SEG(0x92, 0, 0xffffffff)     # Kernel data segment
 
-# TODO: Please fillup the GDT register for gdt in order to used
-#       with "lgdt" instruction.
-# Note: You can reference lab3_reference page 13 for detail meaning
-#       of each bit of GDT register.
 gdtdesc: 
-	.word	# gdt limit
-	.word	# gdt base
+	.word	(gdtdesc-gdt)-1	# gdt limit
+	.long	gdt	# gdt base
