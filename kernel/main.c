@@ -13,8 +13,6 @@ void kernel_main(void)
 	init_video();
 
 	pic_init();
-  /* TODO: You should uncomment them
-   */
 	 kbd_init();
 	 timer_init();
 	 trap_init();
