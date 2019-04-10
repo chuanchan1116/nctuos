@@ -108,6 +108,10 @@ trap_dispatch(struct Trapframe *tf)
 			kbd_intr();
 			break;
 	  
+		case T_PGFLT:
+			pgflt_handler(tf);
+			break;
+
 		default:
 		  	// Unexpected trap: The user process or the kernel has a bug.
 			print_trapframe(tf);
@@ -134,11 +138,19 @@ void trap_init()
 {
 	extern void isr_kbd();
 	extern void isr_timer();
+	extern void isr_pgflt();
 
 	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, isr_kbd, 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, isr_timer, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, isr_pgflt, 0);
 
 	idt_pd.pd_base = idt;
 	idt_pd.pd_lim = sizeof(idt) - 1;
 	lidt(&idt_pd);
+}
+
+void pgflt_handler(struct Trapframe *tf) {
+	uint32_t addr = rcr2();
+	cprintf("[B042002] Page fault @ %p\n", addr);
+	while(1);
 }

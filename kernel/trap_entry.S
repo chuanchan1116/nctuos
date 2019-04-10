@@ -19,7 +19,7 @@
 
  TRAPHANDLER_NOEC(isr_kbd, IRQ_OFFSET + IRQ_KBD);
  TRAPHANDLER_NOEC(isr_timer, IRQ_OFFSET + IRQ_TIMER);
-
+ TRAPHANDLER_NOEC(isr_pgflt, T_PGFLT);
 .globl default_trap_handler;
 _alltraps:
 	pushl %ds

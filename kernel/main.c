@@ -10,20 +10,20 @@ extern void init_video(void);
 void kernel_main(void)
 {
     int *ptr;
-	init_video();
+    init_video();
 
-	pic_init();
-	 kbd_init();
-	 timer_init();
-	 trap_init();
-     mem_init();
+    pic_init();
+    kbd_init();
+    timer_init();
+    trap_init();
+    mem_init();
 
-	/* Enable interrupt */
-	__asm __volatile("sti");
+    /* Enable interrupt */
+    __asm __volatile("sti");
 
     /* Test for page fault handler */
     ptr = (int*)(0x12345678);
-    //*ptr = 1;
+    *ptr = 1;
 
-	shell();
+    shell();
 }
