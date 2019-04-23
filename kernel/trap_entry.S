@@ -82,4 +82,3 @@ trapret:
   popl %ds
   addl $0x8, %esp  # trapno and errcode
   iret
-
