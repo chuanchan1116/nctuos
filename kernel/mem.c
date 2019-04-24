@@ -122,6 +122,7 @@ mem_init(void)
 	uint32_t cr0;
     nextfree = 0;
     page_free_list = 0;
+		num_free_pages = 0;
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
@@ -266,6 +267,7 @@ page_init(void)
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
+			num_free_pages++;
 		} else if (i * PGSIZE >= IOPHYSMEM && i * PGSIZE < EXTPHYSMEM) {
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
@@ -276,6 +278,7 @@ page_init(void)
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
+			num_free_pages++;
 		}
 	}
 
@@ -301,6 +304,7 @@ page_alloc(int alloc_flags)
 	page_free_list = ret->pp_link;
 	ret->pp_link = NULL;
 	if(alloc_flags & ALLOC_ZERO) memset(page2kva(ret), 0, PGSIZE);
+	num_free_pages--;
 	return ret;
 }
 
@@ -318,6 +322,7 @@ page_free(struct PageInfo *pp)
 	assert(!pp->pp_link);
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
+	num_free_pages++;
 }
 
 //
@@ -523,20 +528,22 @@ setupvm(pde_t *pgdir, uint32_t start, uint32_t size)
 }
 
 
-/* TODO: Lab 5
- * Set up kernel part of a page table.
- * You should map the kernel part memory with appropriate permission
- * Return a pointer to newly created page directory
- */
+
 pde_t *
 setupkvm()
 {
+	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	if(!pp) return NULL;
+	pde_t *pd = page2kva(pp);
+	boot_map_region(pd, UPAGES, ROUNDUP((sizeof(struct PageInfo) * npages), PGSIZE), PADDR(pages), PTE_U);
+	boot_map_region(pd, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	boot_map_region(pd, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_U | PTE_W);
+	boot_map_region(pd, IOPHYSMEM, ROUNDUP((EXTPHYSMEM - IOPHYSMEM), PGSIZE), IOPHYSMEM, PTE_U | PTE_W);
+	return pd;
 }
 
 
-/* TODO: Lab 5
- * Please maintain num_free_pages yourself
- */
+
 /* This is the system call implementation of get_num_free_page */
 int32_t
 sys_get_num_free_page(void)
