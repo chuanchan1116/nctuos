@@ -27,8 +27,8 @@ PROVIDE(stext = .);
   user/shell.o (.text)
   user/main.o (.text)
   /usr/lib/gcc/x86_64-linux-gnu/8/32/libgcc.a (.*)
-  PROVIDE(UTEXT_end = .);
   *(.text .stub .text.* .gnu.linkonce.t.*)
+  PROVIDE(UTEXT_end = .);
 }
 PROVIDE(etext = .);	/* Define the 'etext' symbol to this value */
 
@@ -43,8 +43,8 @@ PROVIDE(URODATA_start = .);
   lib/syscall.o (.rodata)
   user/shell.o (.rodata)
   user/main.o (.rodata)
-PROVIDE(URODATA_end = .);
   *(.rodata .rodata.* .gnu.linkonce.r.*)
+PROVIDE(URODATA_end = .);
 }
 PROVIDE(rdata_end = .);
 
@@ -65,8 +65,8 @@ PROVIDE(UDATA_start = .);
   lib/syscall.o (.data)
   user/shell.o (.data)
   user/main.o (.data)
-PROVIDE(UDATA_end = .);
   *(.data .data.*)
+PROVIDE(UDATA_end = .);
 }
 /* Include debugging information in kernel memory */
 .stab : {

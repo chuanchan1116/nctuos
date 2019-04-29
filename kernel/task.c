@@ -118,7 +118,7 @@ int task_create()
 static void task_free(int pid)
 {
 	lcr3(PADDR(kern_pgdir));
-	for(int i = USTACKTOP - PGSIZE; i > USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
+	for(int i = USTACKTOP - PGSIZE; i >= USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
 		page_remove(tasks[pid].pgdir, i);
 	}
 	ptable_remove(tasks[pid].pgdir);
@@ -147,7 +147,7 @@ int sys_fork()
 		for(int i = USTACKTOP - PGSIZE; i >= USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
 			pte_t *src = pgdir_walk(cur_task->pgdir, i, 0);
 			if(src) {
-				pte_t *dst = pgdir_walk(tasks[pid].pgdir, i, 1);
+				pte_t *dst = pgdir_walk(tasks[pid].pgdir, i, 0);
 				memcpy(KADDR(PTE_ADDR(*dst)), KADDR(PTE_ADDR(*src)), PGSIZE);
 			}
 		}

@@ -537,8 +537,8 @@ setupkvm()
 	pde_t *pd = page2kva(pp);
 	boot_map_region(pd, UPAGES, ROUNDUP((sizeof(struct PageInfo) * npages), PGSIZE), PADDR(pages), PTE_U);
 	boot_map_region(pd, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
-	boot_map_region(pd, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_U | PTE_W);
-	boot_map_region(pd, IOPHYSMEM, ROUNDUP((EXTPHYSMEM - IOPHYSMEM), PGSIZE), IOPHYSMEM, PTE_U | PTE_W);
+	boot_map_region(pd, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_W);
+	boot_map_region(pd, IOPHYSMEM, ROUNDUP((EXTPHYSMEM - IOPHYSMEM), PGSIZE), IOPHYSMEM, PTE_W);
 	return pd;
 }
 
