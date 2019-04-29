@@ -71,42 +71,30 @@ Task *cur_task = NULL; //Current running task
 extern void sched_yield(void);
 
 
-/* TODO: Lab5
- * 1. Find a free task structure for the new task,
- *    the global task list is in the array "tasks".
- *    You should find task that is in the state "TASK_FREE"
- *    If cannot find one, return -1.
- *
- * 2. Setup the page directory for the new task
- *
- * 3. Setup the user stack for the new task, you can use
- *    page_alloc() and page_insert(), noted that the va
- *    of user stack is started at USTACKTOP and grows down
- *    to USR_STACK_SIZE, remember that the permission of
- *    those pages should include PTE_U
- *
- * 4. Setup the Trapframe for the new task
- *    We've done this for you, please make sure you
- *    understand the code.
- *
- * 5. Setup the task related data structure
- *    You should fill in task_id, state, parent_id,
- *    and its schedule time quantum (remind_ticks).
- *
- * 6. Return the pid of the newly created task.
- 
- */
 int task_create()
 {
 	Task *ts = NULL;
-
+	int task_id = cur_task ? cur_task->task_id : NR_TASKS-1;
+	int new_id;
 	/* Find a free task structure */
+	for(new_id = (task_id+1) % NR_TASKS; new_id != task_id; new_id = (new_id+1) % NR_TASKS) {
+		if(tasks[new_id].state == TASK_FREE) {
+			ts = &tasks[new_id];
+			break;
+		}
+	}
+	if(!ts) return -1;
 
   /* Setup Page Directory and pages for kernel*/
   if (!(ts->pgdir = setupkvm()))
     panic("Not enough memory for per process page directory!\n");
 
   /* Setup User Stack */
+	for(int i = USTACKTOP - PGSIZE; i >= USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
+		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+		if(!pp) return -1;
+		if(page_insert(ts->pgdir, pp, i, PTE_U | PTE_W)) return -1;
+	}
 
 	/* Setup Trapframe */
 	memset( &(ts->tf), 0, sizeof(ts->tf));
@@ -118,30 +106,24 @@ int task_create()
 	ts->tf.tf_esp = USTACKTOP-PGSIZE;
 
 	/* Setup task structure (task_id and parent_id) */
+	ts->task_id = new_id;
+	ts->parent_id = cur_task ? cur_task->task_id : 0;
+	ts->remind_ticks = TIME_QUANT;
+	ts->state = TASK_RUNNABLE;
+	return new_id;
 }
 
-
-/* TODO: Lab5
- * This function free the memory allocated by kernel.
- *
- * 1. Be sure to change the page directory to kernel's page
- *    directory to avoid page fault when removing the page
- *    table entry.
- *    You can change the current directory with lcr3 provided
- *    in inc/x86.h
- *
- * 2. You have to remove pages of USER STACK
- *
- * 3. You have to remove pages of page table
- *
- * 4. You have to remove pages of page directory
- *
- * HINT: You can refer to page_remove, ptable_remove, and pgdir_remove
- */
 
 
 static void task_free(int pid)
 {
+	lcr3(PADDR(kern_pgdir));
+	for(int i = USTACKTOP - PGSIZE; i >= USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
+		page_remove(tasks[pid].pgdir, i);
+	}
+	ptable_remove(tasks[pid].pgdir);
+	pgdir_remove(tasks[pid].pgdir);
+	tasks[pid].state = TASK_FREE;
 }
 
 // Lab6 TODO
@@ -154,64 +136,38 @@ void sys_kill(int pid)
 {
 	if (pid > 0 && pid < NR_TASKS)
 	{
-	/* TODO: Lab 5
-   * Remember to change the state of tasks
-   * Free the memory
-   * and invoke the scheduler for yield
-   */
+	task_free(pid);
+	sched_yield();
 	}
 }
 
-/* TODO: Lab 5
- * In this function, you have several things todo
- *
- * 1. Use task_create() to create an empty task, return -1
- *    if cannot create a new one.
- *
- * 2. Copy the trap frame of the parent to the child
- *
- * 3. Copy the content of the old stack to the new one,
- *    you can use memcpy to do the job. Remember all the
- *    address you use should be virtual address.
- *
- * 4. Setup virtual memory mapping of the user prgram 
- *    in the new task's page table.
- *    According to linker script, you can determine where
- *    is the user program. We've done this part for you,
- *    but you should understand how it works.
- *
- * 5. The very important step is to let child and 
- *    parent be distinguishable!
- *
- * HINT: You should understand how system call return
- * it's return value.
- */
-
-//
-// Lab6 TODO:
-//
-// Modify it so that the task will disptach to different cpu runqueue
-// (please try to load balance, don't put all task into one cpu)
-//
 int sys_fork()
 {
   /* pid for newly created process */
-  int pid;
+  int pid = task_create();
+	if(pid < 0) return -1;
 	if ((uint32_t)cur_task)
 	{
+		tasks[pid].tf = cur_task->tf;
+		for(int i = USTACKTOP - PGSIZE; i >= USTACKTOP - USR_STACK_SIZE; i -= PGSIZE) {
+			pte_t *src = pgdir_walk(cur_task->pgdir, i, 0);
+			if(src) {
+				pte_t *dst = pgdir_walk(tasks[pid].pgdir, i, 0);
+				memcpy(KADDR(PTE_ADDR(*dst)), KADDR(PTE_ADDR(*src)), PGSIZE);
+			}
+		}
     /* Step 4: All user program use the same code for now */
     setupvm(tasks[pid].pgdir, (uint32_t)UTEXT_start, UTEXT_SZ);
     setupvm(tasks[pid].pgdir, (uint32_t)UDATA_start, UDATA_SZ);
     setupvm(tasks[pid].pgdir, (uint32_t)UBSS_start, UBSS_SZ);
     setupvm(tasks[pid].pgdir, (uint32_t)URODATA_start, URODATA_SZ);
-
+	cur_task->tf.tf_regs.reg_eax = pid;
+	tasks[pid].tf.tf_regs.reg_eax = 0;
 	}
+	return pid;
 }
 
-/* TODO: Lab5
- * We've done the initialization for you,
- * please make sure you understand the code.
- */
+
 void task_init()
 {
   extern int user_entry();

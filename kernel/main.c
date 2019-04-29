@@ -36,7 +36,6 @@ void kernel_main(void)
   printk("Readonly data start=0x%08x to = 0x%08x\n", etext, rdata_end);
   printk("Kernel data base start=0x%08x to = 0x%08x\n", data_start, end);
 
-
   /* Enable interrupt */
   __asm __volatile("sti");
 

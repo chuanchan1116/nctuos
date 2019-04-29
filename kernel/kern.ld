@@ -6,6 +6,8 @@ OUTPUT_ARCH(i386)
 ENTRY(_start)
 kernel_load_addr = 0xF0100000;
 
+
+
 SECTIONS
 {
 . = kernel_load_addr;
@@ -24,9 +26,9 @@ PROVIDE(stext = .);
   lib/syscall.o (.text)
   user/shell.o (.text)
   user/main.o (.text)
-  /usr/lib/gcc/i686-redhat-linux/4.5.1/libgcc.a (.*)
-  PROVIDE(UTEXT_end = .);
+  /usr/lib/gcc/x86_64-linux-gnu/8/32/libgcc.a (.*)
   *(.text .stub .text.* .gnu.linkonce.t.*)
+  PROVIDE(UTEXT_end = .);
 }
 PROVIDE(etext = .);	/* Define the 'etext' symbol to this value */
 
@@ -41,11 +43,31 @@ PROVIDE(URODATA_start = .);
   lib/syscall.o (.rodata)
   user/shell.o (.rodata)
   user/main.o (.rodata)
-PROVIDE(URODATA_end = .);
   *(.rodata .rodata.* .gnu.linkonce.r.*)
+PROVIDE(URODATA_end = .);
 }
 PROVIDE(rdata_end = .);
 
+
+
+/* Adjust the address for the data segment to the next page */
+. = ALIGN(0x1000);
+
+/* The data segment */
+PROVIDE(data_start = .);
+.data :  {
+PROVIDE(UDATA_start = .);
+  lib/string.o (.data)
+  lib/printf.o (.data)
+  lib/printfmt.o (.data)
+  lib/readline.o (.data)
+  lib/console.o (.data)
+  lib/syscall.o (.data)
+  user/shell.o (.data)
+  user/main.o (.data)
+  *(.data .data.*)
+PROVIDE(UDATA_end = .);
+}
 /* Include debugging information in kernel memory */
 .stab : {
   PROVIDE(__STAB_BEGIN__ = .);
@@ -62,25 +84,6 @@ PROVIDE(rdata_end = .);
   BYTE(0)		/* Force the linker to allocate space
   for this section */
 }
-
-/* Adjust the address for the data segment to the next page */
-. = ALIGN(0x1000);
-
-/* The data segment */
-PROVIDE(data_start = .);
-.data : {
-PROVIDE(UDATA_start = .);
-  lib/string.o (.data)
-  lib/printf.o (.data)
-  lib/printfmt.o (.data)
-  lib/readline.o (.data)
-  lib/console.o (.data)
-  lib/syscall.o (.data)
-  user/shell.o (.data)
-  user/main.o (.data)
-PROVIDE(UDATA_end = .);
-  *(.data)
-}
 PROVIDE(bss_start = .);
 .bss : {
 PROVIDE(UBSS_start = .);
@@ -96,6 +99,8 @@ PROVIDE(UBSS_start = .);
 }
 PROVIDE(UBSS_end = .);
 PROVIDE(end = .);
+
+
 
 /DISCARD/ : {
   *(.eh_frame .note.GNU-stack)

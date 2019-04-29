@@ -219,3 +219,9 @@ void trap_init()
 
 	lidt(&idt_pd);
 }
+
+void pgflt_handler(struct Trapframe *tf) {
+	uint32_t addr = rcr2();
+	cprintf("[B042002] Page fault @ %p\n", addr);
+	while(1);
+}
