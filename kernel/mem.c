@@ -9,6 +9,7 @@
 #include <kernel/mem.h>
 #include <kernel/kclock.h>
 #include <kernel/cpu.h>
+#include <kernel/spinlock.h>
 
 // These variables are set by i386_detect_memory()
 size_t                   npages;			// Amount of physical memory (in pages)
@@ -251,8 +252,10 @@ mem_init_mp(void)
 	//             it will fault rather than overwrite another CPU's stack.
 	//             Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
-	// TODO:
-	// Lab6: Your code here:
+	for(int i = 0, kstacktop_i = KSTACKTOP; i < NCPU; i++) {
+		boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+		kstacktop_i -= (KSTKSIZE + KSTKGAP);
+	}
 
 }
 
@@ -289,19 +292,16 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	
-	/* Lab6  TODO:
-	 * 
-	 * modify your implementation to avoid adding the page at
-	 * MPENTRY_PADDR to the free list, so that we can safely
-	 * copy and run AP bootstrap code at that physical address
-	 *
-	 */
+
     size_t i;
 	page_free_list = NULL;
 	pages[0].pp_ref = 1;
 	pages[0].pp_link = NULL;
 	for(i = 1; i < npages; i++) {
-		if(i < npages_basemem) {
+		if(i * PGSIZE == MPENTRY_PADDR) {
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		} else if(i < npages_basemem) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
@@ -337,12 +337,15 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-    if(!page_free_list) return NULL;
+  if(!page_free_list) return NULL;
+	static struct spinlock page_lock;
+	spin_lock(&page_lock);
 	struct PageInfo *ret = page_free_list;
 	page_free_list = ret->pp_link;
 	ret->pp_link = NULL;
 	if(alloc_flags & ALLOC_ZERO) memset(page2kva(ret), 0, PGSIZE);
 	num_free_pages--;
+	spin_unlock(&page_lock);
 	return ret;
 }
 
@@ -432,7 +435,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	int n = size / PGSIZE;
+	int n = ROUNDUP(size, PGSIZE) / PGSIZE;
 	for(int i = 0; i < n; i++) {
 		pte_t *pte = pgdir_walk(pgdir, va, 1);
 		*pte = PTE_ADDR(pa) | perm | PTE_P;
@@ -584,14 +587,13 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Be sure to round size up to a multiple of PGSIZE and to
 	// handle if this reservation would overflow MMIOLIM (it's
 	// okay to simply panic if this happens).
-	//
-	// Hint: The TA solution uses boot_map_region.
-	//
-	// Lab6 TODO
-	// Your code here:
-	
 
-	panic("mmio_map_region not implemented");
+	if(base + ROUNDUP(size, PGSIZE) > MMIOLIM) panic("mmio overflow");
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
+	base += ROUNDUP(size, PGSIZE);
+	return base - ROUNDUP(size, PGSIZE);
+
+	//panic("mmio_map_region not implemented");
 }
 
 /* This is a simple wrapper function for mapping user program */
@@ -607,12 +609,18 @@ pde_t *
 setupkvm()
 {
 	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	extern uint32_t *lapic;
 	if(!pp) return NULL;
 	pde_t *pd = page2kva(pp);
 	boot_map_region(pd, UPAGES, ROUNDUP((sizeof(struct PageInfo) * npages), PGSIZE), PADDR(pages), PTE_U);
 	boot_map_region(pd, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 	boot_map_region(pd, KERNBASE, 0xFFFFFFFF - KERNBASE, 0, PTE_W);
 	boot_map_region(pd, IOPHYSMEM, ROUNDUP((EXTPHYSMEM - IOPHYSMEM), PGSIZE), IOPHYSMEM, PTE_W);
+	for(int i = 0, kstacktop_i = KSTACKTOP; i < NCPU; i++) {
+		boot_map_region(pd, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+		kstacktop_i -= (KSTKSIZE + KSTKGAP);
+	}
+	boot_map_region(pd, lapic, 4096, lapicaddr, PTE_PCD|PTE_PWT|PTE_W);
 	return pd;
 }
 

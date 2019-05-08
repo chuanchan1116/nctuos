@@ -8,17 +8,16 @@
 void sched_yield(void)
 {
 	extern Task tasks[];
-	extern Task *cur_task;
-	int task_id = cur_task->task_id;
-	int new_id;
-	for(new_id = (task_id+1) % NR_TASKS; new_id != task_id; new_id = (new_id+1) % NR_TASKS) {
-		if(tasks[new_id].state == TASK_RUNNABLE) {
+	int i;
+	for(i = thiscpu->cpu_rq.index + 1; i != thiscpu->cpu_rq.index; i = (i+1) % thiscpu->cpu_rq.len) {
+		if(tasks[thiscpu->cpu_rq.running[i]].state == TASK_RUNNABLE) {
 			break;
 		}
 	}
-	cur_task = &tasks[new_id];
-	cur_task->state = TASK_RUNNING;
-	cur_task->remind_ticks = TIME_QUANT;
-	lcr3(PADDR(cur_task->pgdir));
-	ctx_switch(cur_task);
+	thiscpu->cpu_task = &tasks[thiscpu->cpu_rq.running[i]];
+	thiscpu->cpu_task->state = TASK_RUNNING;
+	thiscpu->cpu_task->remind_ticks = TIME_QUANT;
+	//if(cpunum() == 0) printk("CPU %d running pid %d\n", cpunum(), thiscpu->cpu_task->task_id);
+	lcr3(PADDR(thiscpu->cpu_task->pgdir));
+	ctx_switch(thiscpu->cpu_task);
 }

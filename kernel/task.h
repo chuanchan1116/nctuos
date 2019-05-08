@@ -3,7 +3,8 @@
 
 #include <inc/trap.h>
 #include <kernel/mem.h>
-#define NR_TASKS	10
+#include <kernel/spinlock.h>
+#define NR_TASKS	1024
 #define TIME_QUANT	100
 
 typedef enum
@@ -29,19 +30,12 @@ typedef struct
 	
 } Task;
 
-// TODO Lab6
-// 
-// Design your Runqueue structure for cpu
-// your runqueue sould have at least two
-// variables:
-//
-// 1. an index for Round-robin scheduling
-//
-// 2. a list indicate the tasks in the runqueue
-//
 typedef struct
 {
-
+	int index;
+	int running[NR_TASKS];
+	int len;
+	struct spinlock lock;
 } Runqueue;
 
 
