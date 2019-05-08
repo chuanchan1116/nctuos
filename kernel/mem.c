@@ -21,7 +21,6 @@ pde_t                    *kern_pgdir;		// Kernel's initial page directory
 struct PageInfo          *pages;		// Physical page state array
 static struct PageInfo   *page_free_list;	// Free list of physical pages
 size_t                   num_free_pages;
-
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
 // --------------------------------------------------------------
@@ -337,8 +336,8 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-  if(!page_free_list) return NULL;
 	static struct spinlock page_lock;
+  if(!page_free_list) return NULL;
 	spin_lock(&page_lock);
 	struct PageInfo *ret = page_free_list;
 	page_free_list = ret->pp_link;
@@ -359,11 +358,14 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	static struct spinlock free_lock;
 	assert(pp->pp_ref == 0);
 	assert(!pp->pp_link);
+	spin_lock(&free_lock);
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
 	num_free_pages++;
+	spin_unlock(&free_lock);
 }
 
 //
@@ -373,8 +375,11 @@ page_free(struct PageInfo *pp)
 void
 page_decref(struct PageInfo* pp)
 {
+	static struct spinlock p_decrf_lock;
+	spin_lock(&p_decrf_lock);
 	if (--pp->pp_ref == 0)
 		page_free(pp);
+	spin_unlock(&p_decrf_lock);
 }
 
 // Given 'pgdir', a pointer to a page directory, pgdir_walk returns
