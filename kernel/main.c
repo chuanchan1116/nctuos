@@ -46,11 +46,10 @@ void kernel_main(void)
   printk("Readonly data start=0x%08x to = 0x%08x\n", etext, rdata_end);
   printk("Kernel data base start=0x%08x to = 0x%08x\n", data_start, end);
 
-
   /* Enable interrupt */
   __asm __volatile("sti");
 
-  lcr3(PADDR(cur_task->pgdir));
+  lcr3(PADDR(thiscpu->cpu_task->pgdir));
 
   /* Move to user mode */
   asm volatile("movl %0,%%eax\n\t" \
@@ -60,7 +59,7 @@ void kernel_main(void)
   "pushl %2\n\t" \
   "pushl %3\n\t" \
   "iret\n" \
-  :: "m" (cur_task->tf.tf_esp), "i" (GD_UD | 0x03), "i" (GD_UT | 0x03), "m" (cur_task->tf.tf_eip)
+  :: "m" (thiscpu->cpu_task->tf.tf_esp), "i" (GD_UD | 0x03), "i" (GD_UT | 0x03), "m" (thiscpu->cpu_task->tf.tf_eip)
   :"ax");
 }
 
@@ -73,20 +72,13 @@ void *mpentry_kstack;
 static void
 boot_aps(void)
 {
-	// TODO: Lab6
-	//
-	// 1. Write AP entry code (kernel/mpentry.S) to unused memory
-	//    at MPENTRY_PADDR. (use memmove() in lib/string.c)
-	//
-	// 2. Boot each AP one at a time (the cpu structure is defined
-	//    in kernel/cpu.h ). In order to do this, you must:
-	//      -- Tell mpentry.S what stack to use (we communicates the
-	//         per-core stack pointer by mpentry_kstack)
-	//      -- Start the CPU at AP entry code (use lapic_startap()
-	//         in kernel/lapic.c)
-	//      -- Wait for the CPU to finish some basic setup in mp_main(
-	// 
-	// Your code here:
+	extern char mpentry_start[], mpentry_end[];
+	memmove(KADDR(MPENTRY_PADDR), mpentry_start, (mpentry_end - mpentry_start));
+	for(int i = 1; i < ncpu; i++) {
+		mpentry_kstack = percpu_kstacks[i] + KSTKSIZE;
+		lapic_startap(i, MPENTRY_PADDR);
+		while(cpus[i].cpu_status != CPU_STARTED);
+	}
 }
 
 // Setup code for APs
@@ -135,24 +127,7 @@ mp_main(void)
 	 *    lcr3(), ltr(), lgdt(), lidt(), etc., must be executed once on each
 	 *    CPU.
 	 *
-	 * 5. Per-CPU Runqueue
-	 *
-	 * TODO: Lab6
-	 *
-	 * 1. Modify mem_init_mp() (in kernel/mem.c) to map per-CPU stacks.
-	 *    Your code should pass the new check in check_kern_pgdir().
-	 *
-	 * 2. chage per-CPU current task pointer and TSS descriptor ( the tss and
-	 *    cur_task variables defined in kernel/task.c will no longer be useful.)
-	 *
-	 * 3. init per-CPU lapic
-	 *
-	 * 4. init idle task for non-booting AP ( using task_init_percpu() in kernel/task.c )
-	 *
-	 * 5. init per-CPU Runqueue( using task_init_percpu() in kernel/task.c )
-	 *
-	 * 6. init per-CPU system registers
-	 *       
+	 * 5. Per-CPU Runqueue       
 	 */
 	
 	// We are in high EIP now, safe to switch to kern_pgdir 
@@ -160,13 +135,11 @@ mp_main(void)
 	printk("SMP: CPU %d starting\n", cpunum());
 	
 	// Your code here:
-	
+	lapic_init();
+	task_init_percpu();
+	lidt(&idt_pd);
 
-	// TODO: Lab6
-	// Now that we have finished some basic setup, it's time to tell
-	// boot_aps() we're up ( using xchg )
-	// Your code here:
-
+	xchg(&thiscpu->cpu_status, CPU_STARTED);
 
 
 	/* Enable interrupt */

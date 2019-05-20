@@ -53,7 +53,7 @@ bootmain(void)
 	for (; ph < eph; ph++)
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
-		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
+		readseg(ph->p_pa, ph->p_filesz, ph->p_offset);
 
 	// call the entry point from the ELF header
 	// note: does not return!
