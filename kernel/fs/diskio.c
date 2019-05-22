@@ -3,8 +3,9 @@
 #include <fat/diskio.h>
 #include <fat/ff.h>
 #include <kernel/drv/disk.h>
+#include <kernel/timer.h>
 
-/*TODO: Lab7, low level file operator.
+/* Lab7, low level file operator.
  *  You have to provide some device control interface for 
  *  FAT File System Module to communicate with the disk.
  *
@@ -62,10 +63,9 @@
   */
 DSTATUS disk_initialize (BYTE pdrv)
 {
-  /* TODO */
-  /* Note: You can create a function under disk.c  
-   *       to help you get the disk status.
-   */
+  disk_init();
+  DISK_INITIALIZED = 1;
+  return RES_OK;
 }
 
 /**
@@ -78,10 +78,8 @@ DSTATUS disk_initialize (BYTE pdrv)
   */
 DSTATUS disk_status (BYTE pdrv)
 {
-/* TODO */
-/* Note: You can create a function under disk.c  
- *       to help you get the disk status.
- */
+  if(DISK_INITIALIZED) return 0;
+  return STA_NOINIT;
 }
 
 /**
@@ -97,10 +95,14 @@ DSTATUS disk_status (BYTE pdrv)
 DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
 {
     int err = 0;
-    int i = count;
     BYTE *ptr = buff;
     UINT cur_sector = sector;
-    /* TODO */
+    for(int i = 0; i < (int)count; i++) {
+      err = ide_read_sectors(DISK_ID, 1, cur_sector, ptr);
+      ptr += 512;
+      cur_sector++;
+    }
+    return RES_OK;
 }
 
 /**
@@ -116,11 +118,14 @@ DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
 DRESULT disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
 {
     int err = 0;
-    int i = count;
     BYTE *ptr = buff;
     UINT cur_sector = sector;
-    /* TODO */    
-
+    for(int i = 0; i < (int)count; i++) {
+      err = ide_write_sectors(DISK_ID, 1, cur_sector, ptr);
+      ptr += 512;
+      cur_sector++;
+    }
+    return RES_OK;
 }
 
 /**
@@ -137,7 +142,17 @@ DRESULT disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
 {
     uint32_t *retVal = (uint32_t *)buff;
-    /* TODO */    
+    switch (cmd)
+    {
+    case GET_SECTOR_COUNT:
+      *retVal = ide_devices[DISK_ID].Size;
+      break;
+    
+    case GET_BLOCK_SIZE:
+      *retVal = 512;
+      break;
+    }
+    return RES_OK;
 }
 
 /**
@@ -146,5 +161,5 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
   */
 DWORD get_fattime (void)
 {
-    /* TODO */
+  return sys_get_ticks();
 }

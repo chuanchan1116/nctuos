@@ -3,3 +3,5 @@ tags
 *.o
 *.asm
 kernel/system
+.vscode/
+**.DS_Store

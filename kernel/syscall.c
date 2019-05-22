@@ -77,14 +77,41 @@ int32_t do_syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, ui
   case SYS_cls:
     sys_cls();
     break;
-  /* TODO: Lab7 file I/O system call */
+  /* Lab7 file I/O system call */
   case SYS_open:
+    retVal = sys_open((char *)a1, a2, a3);
+    break;
+
   case SYS_read:
+    retVal = sys_read(a1, (void *)a2, a3);
+    break;
+
   case SYS_write:
+    retVal = sys_write(a1, (void *)a2, a3);
+    break;
+
   case SYS_close:
+    retVal = sys_close(a1);
+    break;
+
   case SYS_lseek:
+    retVal = sys_lseek(a1, a2, a3);
+    break;
+
   case SYS_unlink:
-    retVal = -1; //Not yet implemented
+    retVal = sys_unlink((char *)a1);
+    break;
+
+  case SYS_readdir:
+    retVal = sys_readdir((DIR *)a1, (FILINFO *)a2);
+    break;
+
+  case SYS_opendir:
+    retVal = sys_opendir((DIR *)a1, (const char *)a2);
+    break;
+
+  case SYS_closedir:
+    retVal = sys_closedir((DIR *)a1);
     break;
   }
 	return retVal;

@@ -10,7 +10,7 @@ int hist_head;
 int hist_tail;
 int hist_curr;
 
-/* TODO: Lab7, Please add and implement "ls", "touch" and "rm" command */
+/* Lab7, Please add and implement "ls", "touch" and "rm" command */
 
 
 /*  Prototypes  */
@@ -27,6 +27,9 @@ int filetest3(int argc, char **argv);
 int filetest4(int argc, char **argv);
 int filetest5(int argc, char **argv);
 int spinlocktest(int argc, char **argv);
+int ls(int argc, char **argv);
+int touch(int argc, char **argv);
+int rm(int argc, char **argv);
 
 
 struct Command commands[] = {
@@ -42,7 +45,10 @@ struct Command commands[] = {
   { "filetest3", "Laqrge block test", filetest3},
   { "filetest4", "Error test", filetest4},
   { "filetest5", "unlink test", filetest5},
-  { "spinlocktest", "Test spinlock", spinlocktest }
+  { "spinlocktest", "Test spinlock", spinlocktest },
+  { "ls", "List files", ls },
+  { "touch", "Create file", touch },
+  { "rm", "Remove file", rm }
 };
 const int NCOMMANDS = (sizeof(commands)/sizeof(commands[0]));
 
@@ -528,6 +534,47 @@ int fs_speed_test(int argc, char **argv)
         /* close file */
         close(fd);
     }
+}
+
+int ls(int argc, char **argv) {
+  if(argc == 2) {
+    //TODO
+    DIR dirp;
+    FILINFO fno;
+    int ret = opendir(&dirp, argv[1]);
+    if(ret < 0) cprintf("File or path not exist\n");
+    else {
+      while(true) {
+        ret = readdir(&dirp, &fno);
+        if(ret != STATUS_OK || fno.fname[0] == 0) break;
+        cprintf("%s\t%s\t%d\n", fno.fattrib & AM_DIR ? "directory" : "file", fno.fname, fno.fsize);
+      }
+      closedir(&dirp);
+    }
+  } else {
+    cprintf("usage: ls PATH\n");
+  }
+  return 0;
+}
+
+int touch(int argc, char **argv) {
+  if(argc == 2) {
+    int fd = open(argv[1], O_WRONLY | O_CREAT | O_EXCL, 0);
+    close(fd);
+  } else {
+    cprintf("usage: touch FILENAME\n");
+  }
+  return 0;
+}
+
+int rm(int argc, char **argv) {
+  if(argc == 2) {
+    int ret = unlink(argv[1]);
+    if(ret != STATUS_OK) cprintf("Cannot remove %s\n", argv[1]);
+  } else {
+    cprintf("usage: rm FILENAME");
+  }
+  return 0;
 }
 
 void shell()

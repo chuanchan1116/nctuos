@@ -24,6 +24,8 @@ typedef enum {
 	RES_PARERR		/* 4: Invalid Parameter */
 } DRESULT;
 
+static int DISK_INITIALIZED = 0;
+
 
 /*---------------------------------------*/
 /* Prototypes for disk control functions */

@@ -1,6 +1,7 @@
 #ifndef K_FS_H
 #define K_FS_H
 #include <inc/types.h>
+#include <kernel/fs/fat/ff.h>
 
 #define FS_FD_MAX 10
 
@@ -54,7 +55,9 @@ struct fs_ops
     
     //int (*getdents)	(struct fs_fd* fd, struct dirent* dirp, uint32_t count);
     int (*unlink)	(struct fs_fd* fs, const char* pathname);
-
+    int (*opendir)  (DIR *dirp, const char* path);
+    int (*closedir) (DIR *dirp);
+    int (*readdir)  (DIR *dirp, FILINFO *fno);
 };
 
 
@@ -68,6 +71,9 @@ int file_write(struct fs_fd* fd, const void *buf, size_t len);
 
 int file_lseek(struct fs_fd* fd, off_t offset);
 int file_unlink(const char *path);
+int file_opendir(DIR *dp, const char *path);
+int file_closedir(DIR *dp);
+int file_readdir(DIR *dp, FILINFO * fno);
 
 struct fs_fd* fd_get(int fd);
 void fd_put(struct fs_fd* fd);
